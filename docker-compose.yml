@@ -1,0 +1,62 @@
+services:
+  client:
+    container_name: client
+    build:
+      context: ./client
+    networks:
+      wan:
+        ipv4_address: 10.10.1.3
+    privileged: true
+    command: sh -c "ip route del default && ip route add default via 10.10.1.2 && exec sleep infinity"
+    extra_hosts:
+      - "webserver:192.168.24.3"
+      - "ftpserver:192.168.24.4"
+    depends_on:
+      - firewall
+
+  firewall:
+    container_name: firewall
+    build:
+      context: ./firewall
+    networks:
+      wan:
+        ipv4_address: 10.10.1.2
+      lan:
+        ipv4_address: 192.168.24.2
+    cap_add:
+      - NET_ADMIN
+    command: sh -c "echo '1' > /proc/sys/net/ipv4/ip_forward && exec sleep infinity"
+    privileged: true
+
+  server:
+    container_name: webserver
+    build:
+      context: ./webserver
+    networks:
+      lan:
+        ipv4_address: 192.168.24.3
+    command: sh -c "ip route del default && ip route add default via 192.168.24.2 &&  nginx -g 'daemon off;' && exec sleep infinity"
+    privileged: true
+    extra_hosts:
+      - "client:10.10.1.2"
+    depends_on:
+      - firewall
+
+  ftp:
+    image: stilliard/pure-ftpd
+    container_name: ftp
+    networks:
+      lan:
+        ipv4_address: 192.168.24.4
+    ports:
+      - "2121:21"     # FTP control port
+      - "30000-30009:30000-30009" # Passive ports
+    environment:
+      FTP_USER_NAME: "sad"        # Username for FTP
+      FTP_USER_PASS: "cibersad"        # Password for the user
+      FTP_USER_HOME: "/home/sad"  # Home directory
+      ADDED_FLAGS: "--tls=0"           # Disable TLS for simplicity
+    command: sh -c "ip route del default && ip route add default via 192.168.24.2 && exec sleep infinity"
+    privileged: true
+
+
