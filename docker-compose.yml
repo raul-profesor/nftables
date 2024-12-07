@@ -5,14 +5,17 @@ services:
       context: ./client
     networks:
       wan:
-        ipv4_address: 10.10.1.3
+        ipv4_address: ${IP_CLIENT}
     privileged: true
-    command: sh -c "ip route del default && ip route add default via 10.10.1.2 && exec sleep infinity"
+    command: sh -c "ip route del default && ip route add default via ${IP_FIREWALL_WAN} && exec sleep infinity"
     extra_hosts:
-      - "webserver:192.168.24.3"
-      - "ftpserver:192.168.24.4"
+      - "webserver:${IP_WEBSERVER}"
+      - "dnsserver:${IP_DNSSERVER}"
+      - "database:${IP_DATABASE}"
+    dns:
+      - ${IP_DNSSERVER}
     depends_on:
-      - firewall
+      - dns-server
 
   firewall:
     container_name: firewall
@@ -20,9 +23,11 @@ services:
       context: ./firewall
     networks:
       wan:
-        ipv4_address: 10.10.1.2
-      lan:
-        ipv4_address: 192.168.24.2
+        ipv4_address: ${IP_FIREWALL_WAN}
+      dmz:
+        ipv4_address: ${IP_FIREWALL_DMZ}
+      vlan1:
+        ipv4_address: ${IP_FIREWALL_VLAN1}
     cap_add:
       - NET_ADMIN
     command: sh -c "echo '1' > /proc/sys/net/ipv4/ip_forward && exec sleep infinity"
@@ -33,30 +38,45 @@ services:
     build:
       context: ./webserver
     networks:
-      lan:
-        ipv4_address: 192.168.24.3
-    command: sh -c "ip route del default && ip route add default via 192.168.24.2 &&  nginx -g 'daemon off;' && exec sleep infinity"
+      dmz:
+        ipv4_address: ${IP_WEBSERVER}
+    command: sh -c "ip route del default && ip route add default via ${IP_FIREWALL_DMZ} && exec sleep infinity"
+    entrypoint: ["sh", "-c", "service php7.4-fpm start && nginx -g 'daemon off;'"]
     privileged: true
     extra_hosts:
-      - "client:10.10.1.2"
+      - "client:${IP_FIREWALL_DMZ}"
     depends_on:
       - firewall
 
-  ftp:
-    image: stilliard/pure-ftpd
-    container_name: ftp
+  database:
+    container_name: database
+    build:
+      context: ./database
     networks:
-      lan:
-        ipv4_address: 192.168.24.4
-    ports:
-      - "2121:21"     # FTP control port
-      - "30000-30009:30000-30009" # Passive ports
-    environment:
-      FTP_USER_NAME: "sad"        # Username for FTP
-      FTP_USER_PASS: "cibersad"        # Password for the user
-      FTP_USER_HOME: "/home/sad"  # Home directory
-      ADDED_FLAGS: "--tls=0"           # Disable TLS for simplicity
-    command: sh -c "ip route del default && ip route add default via 192.168.24.2 && exec sleep infinity"
+      vlan1:
+        ipv4_address: ${IP_DATABASE}
+    user: root
+    command: sh -c "
+      ip route del default && ip route add default via ${IP_FIREWALL_VLAN1} &&
+      gosu mysql mysqld & sleep 10 &&
+      mysql -e \"CREATE USER 'sad'@'%' IDENTIFIED BY 'cibersad';\" &&
+      mysql -e \"GRANT ALL PRIVILEGES ON *.* TO 'sad'@'%';\" &&
+      mysql -e \"FLUSH PRIVILEGES;\" &&
+      wait"
     privileged: true
+
+  dns-server:
+    image: andyshinn/dnsmasq:2.78
+    container_name: dnsserver
+    networks:
+      dmz:
+        ipv4_address: ${IP_DNSSERVER}
+    environment:
+      - DNSMASQ_LISTEN=0.0.0.0
+      - DNSMASQ_NO_DHCP=1
+    privileged: true
+    command: >
+      sh -c "ip route del default && ip route add default via ${IP_FIREWALL_DMZ} && exec sleep infinity"
+    entrypoint: ["/bin/sh", "-c", "ip route del default && ip route add default via ${IP_FIREWALL_DMZ} && /usr/sbin/dnsmasq --no-daemon --address=/example.com/127.0.0.1"]
 
 
