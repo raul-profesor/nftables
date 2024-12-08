@@ -1,18 +1,31 @@
 <?php
-// Get the environment variables
-$servername = getenv('DB_HOST'); // The hostname is set to the database container name
-$username = "user";
-$password = "password";
-$dbname = "webappdb";
+$servername = "172.16.1.3";
+$username = "sad";
+$password = "cibersad";
+$database = "sampledb";
 
-try {
-    // Create connection
-    $conn = new PDO("mysql:host=$servername;dbname=$dbname", $username, $password);
-    // Set the PDO error mode to exception
-    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    echo "Connected successfully to the database"; 
+// Create connection
+$conn = new mysqli($servername, $username, $password, $database);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
 }
-catch(PDOException $e) {
-    echo "Connection failed: " . $e->getMessage();
+
+// Query the database
+$sql = "SELECT id, name, email FROM users";
+$result = $conn->query($sql);
+
+if ($result->num_rows > 0) {
+    echo "<h1>Users:</h1>";
+    echo "<ul>";
+    while ($row = $result->fetch_assoc()) {
+        echo "<li>ID: " . $row["id"] . " - Name: " . $row["name"] . " - Email: " . $row["email"] . "</li>";
+    }
+    echo "</ul>";
+} else {
+    echo "No users found!";
 }
+
+$conn->close();
 ?>

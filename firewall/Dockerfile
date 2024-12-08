@@ -1,5 +1,5 @@
-FROM alpine:latest
+FROM ubuntu:latest
 
 # Install curl
-RUN apk add --no-cache curl
+RUN apt update && apt install -y curl nftables iproute2 vim iputils-ping nftables
 

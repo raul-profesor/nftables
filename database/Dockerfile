@@ -15,5 +15,7 @@ RUN wget -c https://dev.mysql.com/get/${MYSQL_8_file} &&\
 
 COPY mysqld.cnf /etc/mysql/mysql.conf.d/mysqld.cnf
 
+COPY db-init.sql /tmp
+
 EXPOSE 3306
 
