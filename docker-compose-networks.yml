@@ -15,3 +15,9 @@ networks:
     ipam:
       config:
       - subnet: ${VLAN1_SUBNET}
+      
+  vlan2:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: ${VLAN2_SUBNET}

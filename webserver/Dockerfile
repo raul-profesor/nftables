@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
     php-mysqli \
     php-pdo \
     php-pdo-mysql \
-    gnupg vim && \
+    gnupg vim tcpdump&& \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
