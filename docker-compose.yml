@@ -93,7 +93,7 @@ services:
     user: root
     command: sh -c "
       ip route del default && ip route add default via ${IP_FIREWALL_VLAN1} &&
-      gosu mysql mysqld --init-file=/tmp/db-init.sql &&\
+      gosu mysql mysqld --init-file=/docker-entrypoint-initdb.d/db-init.sql &&\
       wait"
     privileged: true
 
